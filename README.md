@@ -1,1 +1,1 @@
-Site para Escala Loja Shopping Barra
+Site para Escala Loja SHOPPING BARRA
