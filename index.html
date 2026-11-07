@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Escala Loja Shopping Barra</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<style>
+:root{color-scheme:light;--bg:#F9F9F9;--card:#FFFFFF;--tx:#1f1f1f;--mut:#A4A4A4;--bd:#A4A4A4;--ac:#EB184B;--act:#FFFFFF;--hol:#F9F9F9;--sun:#F9F9F9;--hd:#EB184B;--hdt:#FFFFFF;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:"Be Vietnam Pro",system-ui,sans-serif;padding:16px}
+h1{font-size:1.25rem;margin:0 0 2px}
+.sub{color:var(--mut);font-size:.85rem;margin-bottom:14px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+button,select,input[type=date]{font:inherit;padding:8px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--tx);cursor:pointer}
+button.p{background:var(--ac);color:var(--act);border-color:var(--ac);font-weight:600}
+.wk{font-weight:600;padding:0 6px}
+.wrap{overflow-x:auto;border:1px solid var(--bd);border-radius:10px;background:var(--card)}
+#cap{background:var(--card);padding:12px;min-width:980px}
+.ttl{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.ttl b{font-size:1.05rem}.ttl span{color:var(--mut);font-size:.85rem}
+table{border-collapse:collapse;width:100%;table-layout:fixed}
+th,td{border:1px solid var(--bd);padding:4px;vertical-align:top;font-size:.8rem}
+th.t{width:92px;background:var(--bg);text-align:left}
+th.d{background:var(--hd);color:var(--hdt);text-align:center;font-weight:600}
+th.d small{display:block;font-weight:400;opacity:.9}
+th.d label{display:block;font-size:.68rem;font-weight:400;margin-top:2px;cursor:pointer}
+td.off{background:var(--sun);text-align:center;color:var(--mut);vertical-align:middle}
+td.hol{background:var(--hol)}
+.sl{border:1px dashed var(--bd);border-radius:6px;padding:3px;margin-bottom:4px}
+.sl:last-child{margin-bottom:0}
+.sl input{width:100%;border:0;background:transparent;color:var(--tx);font:inherit;font-size:.78rem;padding:2px 3px;outline:0}
+.sl input.c{font-weight:600}
+.sl input.g{color:var(--mut);font-size:.72rem}
+.sl input:focus{background:var(--bg)}
+.tm{font-size:.7rem;color:var(--mut);display:block;font-weight:400}
+#msg{font-size:.85rem;color:var(--ac);min-height:1.2em;margin:8px 0}
+#ov{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;flex-direction:column;align-items:center;gap:10px;padding:16px;overflow:auto;z-index:20}
+#ov img{max-width:100%;border-radius:8px;background:#fff}
+#ov p{color:#fff;margin:0;font-size:.9rem;text-align:center}
+</style>
+</head>
+<body>
+<h1>Escala Loja Shopping Barra</h1>
+<div class="sub">Plantonistas: 2 corretores por turno, cada um com seu gerente.</div>
+
+<div class="bar">
+  <button id="prev">◀</button>
+  <span class="wk" id="wk"></span>
+  <button id="next">▶</button>
+  <input type="date" id="pick" aria-label="Ir para a semana de">
+  <select id="saved" aria-label="Semanas salvas"><option value="">Semanas salvas…</option></select>
+</div>
+<div class="bar">
+  <button class="p" id="save">💾 Salvar semana</button>
+  <button class="p" id="shot">📸 Tirar print</button>
+  <button id="clear">Limpar semana</button>
+</div>
+<div id="msg"></div>
+
+<div class="wrap"><div id="cap">
+  <div class="ttl"><b>ESCALA LOJA SHOPPING BARRA</b><span id="range"></span></div>
+  <table id="tb"></table>
+</div></div>
+
+<div id="ov"><p>Print pronto. Pressione e segure a imagem (ou clique com o botão direito) para salvar.</p><img id="img" alt="Print da escala"><div class="bar"><button class="p" id="sh">Compartilhar</button><button id="cl">Fechar</button></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+const DN=["Segunda","Terça","Quarta","Quinta","Sexta","Sábado","Domingo"];
+const NORMAL=[["m","Manhã","09h às 13h"],["t","Tarde","13h às 17h"],["n","Noite","17h às 22h"]];
+const SPECIAL=[["t","Tarde","12h às 16h"],["n","Noite","16h às 20h"]];
+const $=id=>document.getElementById(id);
+let monday=mondayOf(new Date()), data={h:{},c:{}};
+
+function mondayOf(d){d=new Date(d.getFullYear(),d.getMonth(),d.getDate());const w=(d.getDay()+6)%7;d.setDate(d.getDate()-w);return d}
+const iso=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const br=d=>String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0");
+const key=()=>"escala:"+iso(monday);
+function store(){try{return window.localStorage}catch(e){return null}}
+function load(){data={h:{},c:{}};try{const s=store().getItem(key());if(s)data=JSON.parse(s)}catch(e){}}
+function persist(){try{store().setItem(key(),JSON.stringify(data));return true}catch(e){return false}}
+function say(t){$("msg").textContent=t;clearTimeout(say.t);say.t=setTimeout(()=>$("msg").textContent="",3500)}
+
+function render(){
+  const days=[...Array(7)].map((_,i)=>{const d=new Date(monday);d.setDate(d.getDate()+i);return d});
+  $("wk").textContent=br(days[0])+" a "+br(days[6])+"/"+days[6].getFullYear();
+  $("range").textContent="Semana de "+br(days[0])+" a "+br(days[6])+"/"+days[6].getFullYear();
+  let h='<tr><th class="t">Turno</th>';
+  days.forEach((d,i)=>{const k=iso(d);h+=`<th class="d">${DN[i]}<small>${br(d)}</small><label data-nopr><input type="checkbox" data-hol="${k}" ${data.h[k]?"checked":""}> Feriado</label></th>`});
+  h+="</tr>";
+  [["m","Manhã","09h às 13h"],["t","Tarde","13h às 17h"],["n","Noite","17h às 22h"]].forEach(([s,n,t])=>{
+    h+=`<tr><th class="t">${n}<span class="tm">${t}</span></th>`;
+    days.forEach((d,i)=>{
+      const k=iso(d),sp=i===6||data.h[k];
+      if(sp){
+        const x=SPECIAL.find(a=>a[0]===s);
+        if(!x){h+='<td class="off">Fechado</td>';return}
+        h+='<td class="hol"><span class="tm" style="margin-bottom:3px">'+x[2]+(data.h[k]?" · feriado":"")+'</span>'+slots(k,s)+'</td>';
+      }else h+="<td>"+slots(k,s)+"</td>";
+    });
+    h+="</tr>";
+  });
+  $("tb").innerHTML=h;
+  document.querySelectorAll("[data-hol]").forEach(e=>e.onchange=()=>{if(e.checked)data.h[e.dataset.hol]=1;else delete data.h[e.dataset.hol];persist();refreshSaved();render()});
+  document.querySelectorAll(".sl input").forEach(e=>e.oninput=()=>{data.c[e.dataset.k]=e.value;persist();refreshSaved()});
+}
+function slots(k,s){
+  let o="";
+  for(let p=1;p<=2;p++){const b=k+"|"+s+"|"+p;
+    o+=`<div class="sl"><input class="c" placeholder="Corretor ${p}" data-k="${b}|c" value="${esc(data.c[b+"|c"])}"><input class="g" placeholder="Gerente" data-k="${b}|g" value="${esc(data.c[b+"|g"])}"></div>`}
+  return o;
+}
+function esc(v){return (v||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;")}
+
+function refreshSaved(){
+  const sel=$("saved");sel.innerHTML='<option value="">Semanas salvas…</option>';
+  try{const st=store(),ks=[];for(let i=0;i<st.length;i++){const k=st.key(i);if(k&&k.startsWith("escala:"))ks.push(k.slice(7))}
+    ks.sort().reverse().forEach(k=>{const [y,m,d]=k.split("-").map(Number);const a=new Date(y,m-1,d),b=new Date(y,m-1,d+6);
+      const o=document.createElement("option");o.value=k;o.textContent=br(a)+" a "+br(b)+"/"+b.getFullYear();sel.appendChild(o)})}catch(e){}
+}
+function go(d){monday=mondayOf(d);load();render();refreshSaved()}
+$("prev").onclick=()=>{const d=new Date(monday);d.setDate(d.getDate()-7);go(d)};
+$("next").onclick=()=>{const d=new Date(monday);d.setDate(d.getDate()+7);go(d)};
+$("pick").onchange=e=>{if(e.target.value){const [y,m,d]=e.target.value.split("-").map(Number);go(new Date(y,m-1,d))}};
+$("saved").onchange=e=>{if(e.target.value){const [y,m,d]=e.target.value.split("-").map(Number);go(new Date(y,m-1,d))}};
+$("save").onclick=()=>{say(persist()?"✔ Escala da semana salva.":"Não foi possível salvar neste navegador.");refreshSaved()};
+$("clear").onclick=()=>{if(confirm("Limpar toda a escala desta semana?")){data={h:{},c:{}};try{store().removeItem(key())}catch(e){}render();refreshSaved()}};
+
+let blob=null;
+$("shot").onclick=async()=>{
+  if(!window.html2canvas){say("Biblioteca de print não carregou.");return}
+  say("Gerando print…");
+  const el=$("cap");
+  try{
+    try{await document.fonts.ready}catch(e){}
+    const cv=await html2canvas(el,{scale:2,backgroundColor:"#FFFFFF",windowWidth:Math.max(el.scrollWidth,1000),onclone:d=>{
+      d.querySelectorAll(".sl input").forEach(i=>{const v=document.createElement("div");v.textContent=i.value||"\u00a0";v.style.cssText="padding:3px 4px;line-height:1.4;white-space:normal;overflow-wrap:anywhere;"+(i.classList.contains("c")?"font-size:.8rem;font-weight:600;":"font-size:.72rem;color:#A4A4A4;");i.replaceWith(v)});
+      d.querySelectorAll("[data-nopr]").forEach(l=>{const c=l.querySelector("input");if(c&&c.checked)l.textContent="Feriado";else l.remove()});
+    }});
+    blob=await new Promise(r=>cv.toBlob(r,"image/png"));
+    $("img").src=cv.toDataURL("image/png");$("ov").style.display="flex";say("");
+  }catch(e){say("Erro ao gerar o print.")}
+};
+$("cl").onclick=()=>$("ov").style.display="none";
+$("sh").onclick=async()=>{
+  try{
+    const f=new File([blob],"escala-"+iso(monday)+".png",{type:"image/png"});
+    if(navigator.canShare&&navigator.canShare({files:[f]}))await navigator.share({files:[f],title:"Escala Shopping Barra"});
+    else if(navigator.clipboard&&window.ClipboardItem){await navigator.clipboard.write([new ClipboardItem({"image/png":blob})]);alert("Imagem copiada. Cole no WhatsApp.")}
+    else alert("Salve a imagem pressionando e segurando sobre ela.");
+  }catch(e){}
+};
+go(new Date());
+</script>
+</body>
+</html>
